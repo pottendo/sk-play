@@ -1,0 +1,7 @@
+src/*.d
+src/*.o
+src/*.img
+src/*.lst
+src/*.map
+src/*.elf
+

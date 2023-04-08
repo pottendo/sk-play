@@ -1,0 +1,4 @@
+README
+
+This program plays around with some POSIX bindings: threading, clock, etc.
+
