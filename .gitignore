@@ -4,4 +4,6 @@ src/*.img
 src/*.lst
 src/*.map
 src/*.elf
+src/rad/*.d
+src/rad/*.o
 
