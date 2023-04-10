@@ -22,67 +22,49 @@
 #include <time.h>
 #include <circle/timer.h>
 #include <iostream>
+#include "rad/rad_main.h"
 
 extern int mandel_driver(void);
 
-CKernel::CKernel (void) :
+CKernel::CKernel(void) :
 	mScreen (mOptions.GetWidth (), mOptions.GetHeight ()),
 	mTimer (&mInterrupt),
-	mLogger (mOptions.GetLogLevel (), &mTimer)
+	mLogger (mOptions.GetLogLevel (), &mTimer), mScheduler()
 {
-	mActLED.Blink (5);	// show we are alive
 }
 
 boolean CKernel::Initialize (void) 
 {
 	boolean bOK = TRUE;
 
-	if (bOK)
-	{
-		bOK = mScreen.Initialize ();
-	}
-
-	if (bOK)
-	{
-		bOK = mSerial.Initialize (115200);
-	}
-
+	if (bOK) bOK = mScreen.Initialize ();
+	if (bOK) bOK = mSerial.Initialize (115200);
 	if (bOK)
 	{
 		CDevice *pTarget = mDeviceNameService.GetDevice (mOptions.GetLogDevice (), FALSE);
 		if (pTarget == 0)
-		{
 			pTarget = &mScreen;
-		}
-
 		bOK = mLogger.Initialize (pTarget);
 	}
-
-	if (bOK)
-	{
-		bOK = mInterrupt.Initialize ();
-	}
-
-	if (bOK)
-	{
-		bOK = mTimer.Initialize ();
-	}
-
+	if (bOK) bOK = mInterrupt.Initialize ();
+	if (bOK) bOK = mTimer.Initialize ();
 	return bOK;
 }
+
+extern CKernel Kernel;
+int rad_main(CKernel &kernel); 
 
 TShutdownMode CKernel::Run (void)
 {
 	mLogger.Write ("pottendo-kern", LogNotice, "Mandelbrot Demo");
 	std::cout << "Hello C++ World." << std::endl;
 
-	(void) mandel_driver();
-
+	//(void) mandel_driver();
+	(void) rad_main(Kernel);
 	mLogger.Write ("pottendo-kern", LogNotice, "Demo finished");
 	return ShutdownHalt;
 }
 
-extern CKernel Kernel;
 void RPiConsole_put_pixel(uint32_t x, uint32_t y, uint16_t c)
 {
 	Kernel.set_pixel(x, y, c);

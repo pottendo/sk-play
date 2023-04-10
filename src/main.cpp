@@ -16,13 +16,13 @@
 //
 #include "kernel.h"
 #include <circle/startup.h>
+#include <circle/logger.h>
 
 CKernel Kernel;
 
 int main (void)
 {
 	// cannot return here because some destructors used in CKernel are not implemented
-
 	if (!Kernel.Initialize ())
 	{
 		halt ();

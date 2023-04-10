@@ -36,7 +36,7 @@ enum TShutdownMode
 	ShutdownReboot
 };
 
-class CKernel 
+class CKernel
 {
 public:
 	CKernel (void);
@@ -44,6 +44,10 @@ public:
 	TShutdownMode Run (void);
 	int Cleanup (void) { return 0; }
 	inline void set_pixel(unsigned int x, unsigned int y, TScreenColor c) { mScreen.SetPixel(x, y, c); }
+
+	CInterruptSystem *get_isys(void) { return &mInterrupt; }
+	CTimer *get_timer(void) { return &mTimer; }
+	CLogger *get_logger(void) { return &mLogger; }
 private:
 	CActLED			mActLED;
 	CKernelOptions		mOptions;
@@ -54,7 +58,6 @@ private:
 	CInterruptSystem	mInterrupt;
 	CTimer			mTimer;
 	CLogger			mLogger;
-
 	CScheduler		mScheduler;
 	CSynchronizationEvent	mEvent;
 
