@@ -235,7 +235,7 @@ const int osziPosY = 21;
 #define MOVEDOWN 3
 
 static u8 curRasterCommand = 0;
-const u8 nRasterCommands = 21;
+const u8 nRasterCommands = 23;
 u16 keyScanRasterLinePAL = 275;
 u16 rasterCommandsPAL[ nRasterCommands ][ 3 ] = {
 	{ 28+5-MOVEUP, 0, 12 },
@@ -243,6 +243,7 @@ u16 rasterCommandsPAL[ nRasterCommands ][ 3 ] = {
 	{ 30+5-MOVEUP, 0, 12 },
 
 	{ 32+5-MOVEUP, 1, PAGE2_UPPERCASE },
+	{ 42 - MOVEUP, 2, 1 },
 
 	{ 44-MOVEUP, 0, 11 },
 	{ 45-MOVEUP, 0, 12 },
@@ -255,6 +256,7 @@ u16 rasterCommandsPAL[ nRasterCommands ][ 3 ] = {
 
 	{ osziPosY * 8 + 51 - 1*0, 1, PAGE1_UPPERCASE },
 
+	{ 250+MOVEDOWN, 2, 0 },
 	{ 251+MOVEDOWN, 0, 11 },
 	{ 252+MOVEDOWN, 0, 0 },
 	{ 253+MOVEDOWN, 0, 11 },
@@ -1099,8 +1101,8 @@ void printTimingsScreen( int fade )
 	printC64( xp, ++yp, "H/Y", c3, 0, 0, 39 );
 	printC64( xp, ++yp, "J/U", c3, 0, 0, 39 );
 	printC64( xp, ++yp, "K/I", c3, 0, 0, 39 );
-
-	yp += 2;
+	printC64( xp, ++yp, isNTSC ? "NTSC" : "PAL", c3, 0, 0, 39);
+	yp += 1;
 	printC64( xp, yp, "B Back, P Keep Permanently", c4, 0, 0, 39 );
 }
 
@@ -1603,6 +1605,38 @@ test:
 u8 font_logo[ 0x1000 ];
 static u32 actLED_RegOffset, actLED_RegMask;
 
+void gfx_toggle(int on)
+{
+	u8 v;
+	static u8 save;
+	if (on)
+	{
+		PEEK(0xd016, v);
+		v |= 0b00010000;
+		POKE(0xd016, v);
+		PEEK(0xd011, v);
+		v |= 0b00100000;
+		POKE(0xd011, v);
+		PEEK(0xd018, v);
+		save = v;
+		v &= 0b00001111;
+		v |= (15 << 4);
+		POKE(0xd018, v);
+	}
+	else
+	{
+		PEEK(0xd016, v);
+		v &= 0b11101111;
+		POKE(0xd016, v);
+		PEEK(0xd011, v);
+		v &= 0b11011111;
+		POKE(0xd011, v);
+		PEEK(0xd018, v);
+		v &= 0b00001111;
+		v |= (15 << 4);
+		POKE(0xd018, v);
+	}
+}
 u32 handleOneRasterLine( int fade1024, u8 fadeText = 1 )
 {
 	static u32 srCopy = 0, chCopy = 0;
@@ -1694,6 +1728,9 @@ u32 handleOneRasterLine( int fade1024, u8 fadeText = 1 )
 		case 1:
 			SPOKE( 0xd018, rasterCommands[ curRasterCommand ][ 2 ] );
 			break;
+		case 2:
+			gfx_toggle(rasterCommands[ curRasterCommand ][ 2 ]);
+			break;
 		default:
 			break;
 		};
@@ -1742,68 +1779,19 @@ u32 handleOneRasterLine( int fade1024, u8 fadeText = 1 )
 
 				if ( screenUpdated && !fade1024 )
 				{
+					extern u8 *mandel_canvas;
 					bytesToCopyScreen = min( bytesToCopyScreen, 1000 - srCopy );
 					BUS_RESYNC
-					SMEMCPY( 0xd800 + srCopy, (u8*)&c64ColorRAM[ srCopy ], bytesToCopyScreen );
-					SMEMCPY( SCREEN1 + srCopy, (u8*)&c64ScreenRAM[ srCopy ], bytesToCopyScreen );
+					//SMEMCPY( 0xd800 + srCopy, (u8*)&c64ColorRAM[ srCopy ], bytesToCopyScreen );
+					//SMEMCPY( SCREEN1 + srCopy, (u8*)&c64ScreenRAM[ srCopy ], bytesToCopyScreen );
+					SMEMCPY( 0x6000, mandel_canvas, 1000);
 					srCopy += bytesToCopyScreen;
 					if ( srCopy >= 1000 ) 
 						srCopy = 0;
 				} else
 					bytesToCopyOszi = 8;
-
-
-				bytesToCopyOszi = min(1280 - chCopy, bytesToCopyOszi);
-				BUS_RESYNC
-				SMEMCPY( CHARSET + 64 * 8 + chCopy, (u8*)&font_bin[ 64 * 8 + chCopy ], bytesToCopyOszi );
-				chCopy += bytesToCopyOszi;
-				if ( chCopy >= 1280 ) chCopy = 0;
 			} 
 		}
-
-		#if 1
-		u16 oy = oszi[ osziPos ];
-		oszi[ osziPos ] = raw >> 3;
-		u16 ox = osziPos;
-		osziPos ++; osziPos %= 320;
-
-		// which char to modify?
-		// (ox/8) + (oy/8) * 40
-		u16 ox8 = ox / 8;
-		u16 o = ox8*8 + (oy/8) * 320  // which char?
-				+ (oy & 7);			  // which row inside char
-		o += 64*8;
-		u8 xc = 1 << (7-(ox & 7));
-
-		font_bin[ o ] &= ~xc;
-//		font_bin[ o ] |= xc;
-
-		o = ox8*8 + ((raw>>3)/8) * 320  // which char?
-				+ ((raw>>3) & 7);		// which row inside char
-		o += 64*8;
-		if ( ( ( ox8 == 0 || ox8 == 39 ) && ( xc & 0x11 ) ) ||
-				( ( ox8 == 1 || ox8 == 38 ) && ( xc & 0x55 ) ) ||
-				( ( ox8 == 2 || ox8 == 37 ) && ( xc & 0xdb ) ) ||
-				( ox8 > 2 && ox8 < 37 ) )
-//				font_bin[ o ] &= ~xc;
-				font_bin[ o ] |= xc;
-
-		if ( ox >= 319 - 72 )
-		for ( int j = 0; j < 5; j++ )
-			//for ( int i = 0; i < 72; i++ )
-			{
-				u16 oy = 32 - 5 + j;
-				u16 i = ox - ( 319 - 72 );
-				u16 ox8 = ox / 8;
-				u16 o = ox8 * 8 + ( oy / 8 ) * 320  // which char?
-					+ ( oy & 7 );			  // which row inside char
-				o += 64 * 8;
-				u8 xc = 1 << ( 7 - ( ox & 7 ) );
-				if ( logo[ i + j * 320 + 76 ] )
-					font_bin[ o ] |= xc;
-
-			}
-		#endif
 		BUS_RESYNC
 	}
 
@@ -2055,6 +2043,7 @@ logger->Write("RAD", LogNotice, "%s - 1", __FUNCTION__);
 	}
 
 	u16 addr = 0x4000;
+#if 0
 	for ( int i = 0; i < 6; i++ )
 	{
 		u8 c = 2 + (i / 3);
@@ -2073,6 +2062,11 @@ logger->Write("RAD", LogNotice, "%s - 1", __FUNCTION__);
 		}
 		SPOKE( addr, 0 );
 		addr ++;
+	}
+#endif
+	for (int i = 0; i < 8000; i++)
+	{
+		POKE(0x6000 + i, i % 256);
 	}
 
 	for ( int i = 0; i < 40 * 4; i++ )
@@ -2162,7 +2156,7 @@ logger->Write("RAD", LogNotice, "%s - 1", __FUNCTION__);
 	SPOKE( 0xdc03, 0 );		// port b ddr (input)
 	SPOKE( 0xdc02, 0xff );	// port a ddr (output)
 	SPOKE( 0xd016, 8 );
-	SPOKE( 0xd021, 6 );
+	SPOKE( 0xd021, 0 );
 	SPOKE( 0xd011, 0x1b );
 	SPOKE( 0xdd00, 0b11000000 | ((SCREEN1 >> 14) ^ 0x03) );
 	// sprites

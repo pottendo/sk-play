@@ -36,6 +36,7 @@
 #include "c64-lib.h"
 #else
 static char cv[CSIZE] = {};
+char *mandel_canvas = cv;
 #endif
 
 #ifdef __ZEPHYR__
@@ -89,7 +90,7 @@ int mandel_driver(void)
     col3 = 14; // VIC::LIGHT_BLUE;
         log_msg("%s - 1\n", __FUNCTION__);
 
-    for (int i = 0; i < 16; i++) 
+    for (int i = 0; i < 1; i++) 
     {
 #ifdef C64
             memset(&cv[0x3c00], (col1<<4)|col2, 1000);

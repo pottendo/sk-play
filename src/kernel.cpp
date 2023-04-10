@@ -59,7 +59,7 @@ TShutdownMode CKernel::Run (void)
 	mLogger.Write ("pottendo-kern", LogNotice, "Mandelbrot Demo");
 	std::cout << "Hello C++ World." << std::endl;
 
-	//(void) mandel_driver();
+	(void) mandel_driver();
 	(void) rad_main(Kernel);
 	mLogger.Write ("pottendo-kern", LogNotice, "Demo finished");
 	return ShutdownHalt;
