@@ -226,25 +226,20 @@ void CRAD::Run( void )
 	setDefaultTimings( AUTO_TIMING_RPI3PLUS_C64C128 );
 	readConfig( logger, DRIVE, FILENAME_CONFIG );
 
-logger->Write("RAD_MAIN", LogNotice, "%s: before I/O stuff", __FUNCTION__);
 	OUT_GPIO( RESET_OUT );
 	CLR_GPIO( bRESET_OUT );
 	DELAY( 1 << 25 );
 	SET_GPIO( bRESET_OUT );
 	INP_GPIO( RESET_OUT );
 
-logger->Write("RAD_MAIN", LogNotice, "%s: before disableIRQs()", __FUNCTION__);
 	DisableIRQs();
-logger->Write("RAD_MAIN", LogNotice, "%s: after disableIRQs()", __FUNCTION__);
 
 	register u32 g2;
 
 	// this also initializes timing values
 	//REU_SIZE_KB = 128;
 	initREU();
-logger->Write("RAD_MAIN", LogNotice, "before initHijack()");
 	initHijack();
-logger->Write("RAD_MAIN", LogNotice, "after initHijack()");
 
 #ifdef REU_PROTOCOL
 	nReuProtocol = 0;
@@ -292,7 +287,6 @@ logger->Write("RAD_MAIN", LogNotice, "after initHijack()");
 				goto hijacking;
 		}
 
-logger->Write("RAD_MAIN", LogNotice, "hijacking...");
 	hijacking:
 		temperature = m_CPUThrottle.GetTemperature();
 

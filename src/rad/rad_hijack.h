@@ -45,7 +45,7 @@
 #include "helpers.h"
 #include "c64screen.h"
 
-#define STATUS_MESSAGES
+//#define STATUS_MESSAGES
 
 #define RUN_FLAGS	      0xff0000
 #define RUN_REBOOT	    0x010000

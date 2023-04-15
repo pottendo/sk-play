@@ -82,6 +82,7 @@ class mandel
     coord_t mark_x1, mark_y1, mark_x2, mark_y2;
     myDOUBLE last_xr, last_yr, ssw, ssh, transx, transy, xratio;
     int coffset;
+    uint32_t pixel_mask;
     struct timespec tstart, tend;
 
     pthread_mutex_t canvas_sem;
@@ -123,7 +124,7 @@ class mandel
             return;
         }
         char t = canvas[cidx];
-        t %= ~val;
+        t &= ~pixel_mask;
         t |= val;
         canvas[cidx] = t;
 #ifdef __ZEPHYR__
@@ -273,6 +274,7 @@ extern void RPiConsole_put_pixel(uint32_t x, uint32_t y, uint16_t);
         transy = sy;
         myDOUBLE stepx = (xres / thread_no) * ssw * xratio;
         myDOUBLE stepy = (yres / thread_no) * ssh;
+
         pthread_t th;
         log_msg("%s - 1\n", __FUNCTION__);
         if (thread_no > 16)
@@ -313,7 +315,7 @@ extern void RPiConsole_put_pixel(uint32_t x, uint32_t y, uint16_t);
                 pthread_detach(th);
         log_msg("%s - 5\n", __FUNCTION__);
 
-                usleep(20*1000); // needed to make zephyr happy when loggin is enabled. Seems some race with the the KickOff mutex. Maybe some bug?
+                //usleep(20*1000); // needed to make zephyr happy when loggin is enabled. Seems some race with the the KickOff mutex. Maybe some bug?
         log_msg("%s - 6\n", __FUNCTION__);
 
             }
@@ -365,13 +367,21 @@ extern void RPiConsole_put_pixel(uint32_t x, uint32_t y, uint16_t);
 
 public:
     mandel(canvas_t c, char *st, myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh, uint16_t xr, uint16_t yr, myDOUBLE xrat = 1.0, int coffs = 0)
-        : canvas(c), stacks(st), xres(xr), yres(yr), xratio(xrat), coffset(coffs)
+        : canvas(c), stacks(st), xres(xr), yres(yr), xratio(xrat), coffset(coffs), pixel_mask(0)
     {
+#if 0            
         for (int i = 0; i < PAL_SIZE / 2; i++)
         {
             col_pal[i] = (i + coffset) * 2;
             col_pal[PAL_SIZE-1 - i] = (i + coffset) * 2;
+#else
+        for (int i = 0; i < PAL_SIZE; i++)
+        {
+            col_pal[i] = i;
+#endif
         }
+        for (int i = 0; i < PIXELW; i++)
+            pixel_mask = (pixel_mask << 1) | 0b1;
         pthread_mutex_init(&canvas_sem, nullptr);
         log_msg("%s: canvas_mutex initialized: %p\n", __FUNCTION__, &canvas_sem);
         sem_init(&master_sem, 0, 0);

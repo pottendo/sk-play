@@ -54,12 +54,14 @@ boolean CKernel::Initialize (void)
 extern CKernel Kernel;
 int rad_main(CKernel &kernel); 
 
+extern int mandel_iterate(int);
+
 TShutdownMode CKernel::Run (void)
 {
 	mLogger.Write ("pottendo-kern", LogNotice, "Mandelbrot Demo");
 	std::cout << "Hello C++ World." << std::endl;
 
-	(void) mandel_driver();
+	(void) mandel_iterate(1000*1000);
 	(void) rad_main(Kernel);
 	mLogger.Write ("pottendo-kern", LogNotice, "Demo finished");
 	return ShutdownHalt;

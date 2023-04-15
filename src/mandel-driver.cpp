@@ -16,7 +16,7 @@
 #define MTYPE double
 
 #define CSIZE (IMG_W * IMG_H) / 8
-#define PAL_SIZE 256 //(2 * PIXELW)
+#define PAL_SIZE (2 * PIXELW) // 256 for RPi Console
 
 // set this to enable direct output on C64 gfx mem.
 //#define C64
@@ -68,8 +68,42 @@ std::vector<rec_t> recs = {
         {{60,75}, {100, 125}},
         {{40,50}, {80, 100}},
         {{120,75}, {159, 125}},
+};
 
-    };
+int mandel_zoom(mandel<MTYPE> *m, size_t i)
+{
+    auto r = &recs[i];
+     //log_msg("Zooming into [%d,%d]x[%d,%d]...stacks=%p\n", it->lu.x, it->lu.y, it->rd.x, it->rd.y, m->get_stacks());
+    m->select_start(r->lu);
+    m->select_end(r->rd);
+    return 0;
+}
+
+mandel<MTYPE> *tmandel = nullptr;
+int mandel_iterate(int usec)
+{
+    static size_t it = 0;
+    static char *sts = new char[STACK_SIZE * NO_THREADS]();
+    if (tmandel == nullptr)
+    {
+        tmandel = new mandel<MTYPE>{cv, sts, -1.5, -1.0, 0.5, 1.0, IMG_W / PIXELW, IMG_H, xrat, 50};
+        return 1;
+    }
+//    usleep(usec);
+    if (it < recs.size())
+    {
+        mandel_zoom(tmandel, it);
+        it++;
+        return 1;
+    }
+    else
+    {
+        it = 0;
+        delete tmandel;
+        tmandel = new mandel<MTYPE>{cv, sts, -1.5, -1.0, 0.5, 1.0, IMG_W / PIXELW, IMG_H, xrat, 50};
+        return 0;
+    }
+}
 
 int mandel_driver(void)
 {
@@ -88,7 +122,7 @@ int mandel_driver(void)
     col1 = 0xb;
     col2 = 0xc;
     col3 = 14; // VIC::LIGHT_BLUE;
-        log_msg("%s - 1\n", __FUNCTION__);
+    log_msg("%s - 1\n", __FUNCTION__);
 
     for (int i = 0; i < 1; i++) 
     {
@@ -97,13 +131,10 @@ int mandel_driver(void)
             memset(&c64.get_mem()[0xd800], col3, 1000);
 #endif 
         mandel<MTYPE> *m = new mandel<MTYPE>{cv, stacks, -1.5, -1.0, 0.5, 1.0, IMG_W / PIXELW, IMG_H, xrat, 50};
-        for (size_t i = 0; i < recs.size(); i++)
+        for (size_t iz = 0; iz < recs.size(); iz++)
         {
-            auto it = &recs[i];
-            //log_msg("Zooming into [%d,%d]x[%d,%d]...stacks=%p\n", it->lu.x, it->lu.y, it->rd.x, it->rd.y, m->get_stacks());
-            m->select_start(it->lu);
-            m->select_end(it->rd);
-            sleep(2);
+            mandel_zoom(m, iz);
+            sleep(1);
         }
         col1++; col2++; col3++;
         col1 %= 0xf; if (col1 == 0) col1++;

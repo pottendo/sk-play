@@ -56,6 +56,7 @@ u8 supportDAC = 0;
 
 extern void *pFIQ;
 extern void warmCache( void *fiqh );
+extern int mandel_iterate(int usec);
 
 #include "lowlevel_dma.h"
 
@@ -229,47 +230,19 @@ void printC64( u32 x, u32 y, const char *t, u8 color, u8 flag, u32 convert, u32 
 
 extern void printBrowser( int fade );
 
-const int osziPosY = 21;
-
-#define MOVEUP 4
-#define MOVEDOWN 3
+#define MOVEUP 0
+#define MOVEDOWN 0
 
 static u8 curRasterCommand = 0;
-const u8 nRasterCommands = 23;
+const u8 nRasterCommands = 2;
 u16 keyScanRasterLinePAL = 275;
 u16 rasterCommandsPAL[ nRasterCommands ][ 3 ] = {
-	{ 28+5-MOVEUP, 0, 12 },
-	{ 29+5-MOVEUP, 0, 15 },
-	{ 30+5-MOVEUP, 0, 12 },
-
-	{ 32+5-MOVEUP, 1, PAGE2_UPPERCASE },
-	{ 42 - MOVEUP, 2, 1 },
-
-	{ 44-MOVEUP, 0, 11 },
-	{ 45-MOVEUP, 0, 12 },
-	{ 46-MOVEUP, 0, 11 },
-	{ 49-MOVEUP, 0, 0 },
-	{ 50-MOVEUP, 0, 11 },
-	{ 51-MOVEUP, 0, 0 },
-
-	{ 52+31, 1, PAGE1_LOWERCASE },
-
-	{ osziPosY * 8 + 51 - 1*0, 1, PAGE1_UPPERCASE },
-
-	{ 250+MOVEDOWN, 2, 0 },
-	{ 251+MOVEDOWN, 0, 11 },
-	{ 252+MOVEDOWN, 0, 0 },
-	{ 253+MOVEDOWN, 0, 11 },
-	{ 256+MOVEDOWN, 0, 12 },
-	{ 257+MOVEDOWN, 0, 11 },
-	{ 258+MOVEDOWN, 0, 12 },
-	{ 267+MOVEDOWN, 0, 15 },
-	{ 268+MOVEDOWN, 0, 12 },
-	{ 269+MOVEDOWN, 0, 15 },
+	{  50 - MOVEUP, 2, 1 },
+	{ 253 + MOVEDOWN, 2, 0 },
 };
 
 u16 keyScanRasterLineNTSC = 13;
-
+#if 0
 u16 rasterCommandsNTSC[ nRasterCommands ][ 3 ] = {
 	{ 28, 0, 12 },
 	{ 29, 0, 15 },
@@ -298,7 +271,7 @@ u16 rasterCommandsNTSC[ nRasterCommands ][ 3 ] = {
 	{  11, 0, 12 },
 	{  12, 0, 15 },
 };
-
+#endif
 u16 (*rasterCommands)[ 3 ] = rasterCommandsPAL;
 u16 keyScanRasterLine = keyScanRasterLinePAL;
 
@@ -349,10 +322,8 @@ char radImageSelectedPrint[ 22 ];
 char radImageSelectedFile[ 1024 ];
 char radImageSelectedName[ 1024 ];
 
-#ifdef STATUS_MESSAGES
 const char statusHeader[] = ".- RAD EXPANSION UNIT -.";
 char statusMsg[ 40 * 8 ];
-#endif
 
 static u8 toupper( u8 c )
 {
@@ -465,12 +436,13 @@ void checkForNTSC()
 	// isNTSC == 0 => PAL: 312 rasterlines, 63 cycles
 	// isNTSC == 1 => NTSC: 262 (0..261) rasterlines, 64 cycles, 6567R56A
 	// isNTSC == 2 => NTSC: 263 (0..262) rasterlines, 65 cycles, 6567R8
-
+#if 0
 	if ( isNTSC )
 	{
 		rasterCommands = rasterCommandsNTSC;
 		keyScanRasterLine = keyScanRasterLineNTSC;
 	} else
+#endif
 	{
 		rasterCommands = rasterCommandsPAL;
 		keyScanRasterLine = keyScanRasterLinePAL;
@@ -1279,16 +1251,6 @@ u32 readKeyRenderMenu( int fade )
 				return RUN_REBOOT;
 			#endif
 		#endif
-#if 0
-			if ( k == 'N' && reu.isModified == meType + 1 )
-			{
-				if ( radImageSelectedFile[ 0 ] == '_' || radImageSelectedFile[ 0 ] == 0 )
-					imageNameStr[ 0 ] = 0; else
-					strcpy( imageNameStr, radImageSelectedPrint );
-				imageNameStrLength = strlen( imageNameStr );
-				imageNameEdit = 1;
-			}
-
 			if ( k == 'X' )
 			{
 				memset( &statusMsg[ 80 ], 32, 40 );
@@ -1299,6 +1261,16 @@ u32 readKeyRenderMenu( int fade )
 
 				return RUN_MEMEXP + meType + 1;
 			} 
+#if 0
+			if ( k == 'N' && reu.isModified == meType + 1 )
+			{
+				if ( radImageSelectedFile[ 0 ] == '_' || radImageSelectedFile[ 0 ] == 0 )
+					imageNameStr[ 0 ] = 0; else
+					strcpy( imageNameStr, radImageSelectedPrint );
+				imageNameStrLength = strlen( imageNameStr );
+				imageNameEdit = 1;
+			}
+
 			if ( k == 'U' )
 			{
 				unmarkAllFiles();
@@ -1605,45 +1577,74 @@ test:
 u8 font_logo[ 0x1000 ];
 static u32 actLED_RegOffset, actLED_RegMask;
 
+static u8 dummy[1000];
+static u8 cdummy[1000];
+extern u8 *mandel_canvas;
+
 void gfx_toggle(int on)
 {
 	u8 v;
-	static u8 save;
+	static u8 save, cr2_save;
 	if (on)
 	{
-		PEEK(0xd016, v);
-		v |= 0b00010000;
-		POKE(0xd016, v);
-		PEEK(0xd011, v);
-		v |= 0b00100000;
-		POKE(0xd011, v);
-		PEEK(0xd018, v);
+		SPOKE(0xd020, 14);
+		SPEEK(0xdd00, v);
+		v &= 0b11111100;
+		v |= 0b00000010;
+		SPOKE(0xdd00, v);
+
+		SPEEK(0xd016, v);		// VIC.CR2
+		cr2_save = v;
+		v &= 0b11110000;
+		v |= 0b00011000;		// MC + 40cols + xscroll set
+		SPOKE(0xd016, v);
+
+		SPEEK(0xd011, v);		// VIC.CR1
+		v &= 0b10111111;		// ext BGColoerMode off
+		v |= 0b00100000;		// Bitmap on
+		SPOKE(0xd011, v);
+
+		SPEEK(0xd018, v);		// VIC.MEM
 		save = v;
-		v &= 0b00001111;
-		v |= (15 << 4);
-		POKE(0xd018, v);
+		v &= 0b00000111;		// => VideoRAM base + 0x3c00
+		v |= 0b11110000;
+		SPOKE(0xd018, v);
+
 	}
 	else
 	{
-		PEEK(0xd016, v);
-		v &= 0b11101111;
-		POKE(0xd016, v);
-		PEEK(0xd011, v);
+		SPOKE(0xd020, 14);
+		//SPEEK(0xd016, v);
+		//v &= 0b11101111;
+		//SPOKE(0xd016, v);
+		SPOKE(0xd016, cr2_save);
+
+		SPEEK(0xd011, v);
 		v &= 0b11011111;
-		POKE(0xd011, v);
-		PEEK(0xd018, v);
-		v &= 0b00001111;
-		v |= (15 << 4);
-		POKE(0xd018, v);
+		SPOKE(0xd011, v);
+
+//		PEEK(0xd018, v);
+//		v &= 0b00001111;
+//		v |= (15 << 4);
+//		POKE(0xd018, v);
+
+		SPOKE(0xd018, save);
+		SPEEK(0xdd00, v);
+		v |= 0b00000011;
+		SPOKE(0xdd00, v);
 	}
 }
 u32 handleOneRasterLine( int fade1024, u8 fadeText = 1 )
 {
 	static u32 srCopy = 0, chCopy = 0;
+	static u32 offs = 0;
 
-	CACHE_PRELOADL2STRM( (u8 *)&c64ColorRAM[ srCopy ] );
-	CACHE_PRELOADL2STRM( (u8 *)&c64ScreenRAM[ srCopy ] );
-	CACHE_PRELOADL2STRM( (u8 *)&font_bin[ 64 * 8 + chCopy ] );
+	//CACHE_PRELOADL2STRM( (u8 *)&c64ColorRAM[ srCopy ] );
+	//CACHE_PRELOADL2STRM( (u8 *)&c64ScreenRAM[ srCopy ] );
+	CACHE_PRELOADL2STRM( (u8 *)&cdummy[ srCopy ] );
+	CACHE_PRELOADL2STRM( (u8 *)&dummy[ srCopy ] );
+	CACHE_PRELOADL2STRM( (u8 *)&mandel_canvas[ offs ] );
+	//CACHE_PRELOADL2STRM( (u8 *)&font_bin[ 64 * 8 + chCopy ] );
 
 	static u32 rasterCount = 0;
 	u32 v = ( (rasterCount++) >> 10 ) & 31;
@@ -1662,35 +1663,6 @@ u32 handleOneRasterLine( int fade1024, u8 fadeText = 1 )
 
 	u8 y;
 
-	static u16 addr = 0;
-
-#ifdef PLAY_MUSIC
-	s16 raw = wavMemory[ wavPosition ];
-	if ( fade1024 )
-	{
-		u8 sc = max( 0, 1024 - fade1024 );
-		raw = ( (int)raw - 128 ) * sc / 1024 + 128;
-	}
-
-	u8 s;
-	if ( supportDAC )
-		s = raw; else
-	if ( SIDType )
-		s = mahoneyLUT[ raw ]; else
-		s = raw >> 4; // 4-bit digi playing
-
-	wavPosition ++;
-	if ( wavPosition >= nWAVSamples )
-		wavPosition = 0;
-
-	CACHE_PRELOADL1STRM( &wavMemory[ wavPosition ] );
-	CACHE_PRELOADL1STRM( &wavMemory[ wavPosition + 64 ] );
-
-#else
-	s16 raw = 128;
-	u8 s = 0;
-#endif
-
 	BUS_RESYNC
 
 	u16 curRasterLine;
@@ -1699,7 +1671,6 @@ u32 handleOneRasterLine( int fade1024, u8 fadeText = 1 )
 		curRasterLine = y;
 	} while ( curRasterLine == lastRasterLine );
 	lastRasterLine = curRasterLine;
-
 	SPEEK( 0xd011, y );
 	if ( y & 128 ) curRasterLine += 256;
 
@@ -1710,10 +1681,6 @@ u32 handleOneRasterLine( int fade1024, u8 fadeText = 1 )
 
 	if ( curRasterLine < 51 || curRasterLine > 250 ) 
 		badline = false;
-
-#ifdef PLAY_MUSIC
-	SPOKE( 0xd418, s );
-#endif
 
 	if ( curRasterLine == rasterCommands[ curRasterCommand ][ 0 ] )
 	{
@@ -1726,7 +1693,7 @@ u32 handleOneRasterLine( int fade1024, u8 fadeText = 1 )
 			POKE( 0xd020, fadeTabStep[ rasterCommands[ curRasterCommand ][ 2 ] ][ fade ] );
 			break;
 		case 1:
-			SPOKE( 0xd018, rasterCommands[ curRasterCommand ][ 2 ] );
+			//SPOKE( 0xd018, rasterCommands[ curRasterCommand ][ 2 ] );
 			break;
 		case 2:
 			gfx_toggle(rasterCommands[ curRasterCommand ][ 2 ]);
@@ -1740,35 +1707,10 @@ u32 handleOneRasterLine( int fade1024, u8 fadeText = 1 )
 	} else
 	{
 		static u8 nthFrame = 0;
-		static u8 c1, c2;
-
-		if ( curRasterLine == 34 )
-		{
-			c1 = fadeTabStep[ 15 ][ fade ];
-			c2 = fadeTabStep[ 11 ][ fade ];
-			SPOKE( 0xd015, 0b111111 );
-		} else
-		if ( curRasterLine >= 35 && curRasterLine < 38 )
-		{
-			u8 i = curRasterLine - 35;
-			SPOKE( 0xd027 + i, c1 );
-			SPOKE( 0xd02a + i, c2 );
-			SPOKE( SCREEN1 + 1024 - 8 + i, i );
-			SPOKE( SCREEN1 + 1024 - 8 + i+3, i+3 );
-		} else
-		if ( fade1024 && fadeText )
-		{
-			u8 x;
-			PEEK( 0xd800 + addr, x );
-			POKE( 0xd800 + addr, fadeTab[ x & 15 ] );
-			addr += 3;
-			addr %= 1000;
-		} else
 		if ( curRasterLine == keyScanRasterLine && !fade1024 && ( ++nthFrame % 3 ) == 0 )
 		{
 			nthFrame = 0;
 			u32 r = readKeyRenderMenu( fade );
-
 			if ( r ) return r;
 		} else
 		{
@@ -1776,20 +1718,20 @@ u32 handleOneRasterLine( int fade1024, u8 fadeText = 1 )
 			{
 				u32 bytesToCopyScreen = 4;
 				u32 bytesToCopyOszi = 4;
-
 				if ( screenUpdated && !fade1024 )
 				{
-					extern u8 *mandel_canvas;
 					bytesToCopyScreen = min( bytesToCopyScreen, 1000 - srCopy );
 					BUS_RESYNC
-					//SMEMCPY( 0xd800 + srCopy, (u8*)&c64ColorRAM[ srCopy ], bytesToCopyScreen );
-					//SMEMCPY( SCREEN1 + srCopy, (u8*)&c64ScreenRAM[ srCopy ], bytesToCopyScreen );
-					SMEMCPY( 0x6000, mandel_canvas, 1000);
+					SMEMCPY( 0xd800 + srCopy, (u8*)&cdummy /*&c64ColorRAM*/[ srCopy ], bytesToCopyScreen );
+					SMEMCPY( 0x7c00 /*SCREEN1*/ + srCopy, (u8*)&dummy/*&c64ScreenRAM*/[ srCopy ], bytesToCopyScreen );
+					SMEMCPY( 0x4000 + offs, (u8*) &mandel_canvas [ offs ], 10);
+					offs += 10;
+					if (offs >= 8000)
+						offs = 0;
 					srCopy += bytesToCopyScreen;
 					if ( srCopy >= 1000 ) 
 						srCopy = 0;
-				} else
-					bytesToCopyOszi = 8;
+				} 
 			} 
 		}
 		BUS_RESYNC
@@ -1860,10 +1802,9 @@ int hijackC64( bool alreadyInDMA )
 {
 	register u32 g2;
 	u8 x;
+	boolean again = false;
 
 restartHijacking:
-
-logger->Write("RAD", LogNotice, "%s - 1", __FUNCTION__);
 
 	if ( !alreadyInDMA )
 		waitAndHijackMenu( g2 );
@@ -1894,23 +1835,14 @@ logger->Write("RAD", LogNotice, "%s - 1", __FUNCTION__);
 	setStatusMessage( &statusMsg[ 80 ], " " );
 #endif
 
-	memset( oszi, 0, 320 );
 	memset( c64ScreenRAM, 32, 1024 );
 	memset( c64ColorRAM, 2, 1024 );
 
-	for ( int i = 0; i < 4*40; i++ )
-	{
-		c64ScreenRAM[ osziPosY * 40 + i ] = i + 64;
-		c64ColorRAM[ osziPosY * 40 + i ] = (i/40) == 0 || (i/40) == 3 ? 12 : 15;
-	}
-
 	printBrowser( 0 );
 
-	CACHE_PRELOAD_DATA_CACHE( &oszi[ 0 ], 320, CACHE_PRELOADL2KEEP )
 	CACHE_PRELOAD_DATA_CACHE( &font_bin[ 0 ], 4096, CACHE_PRELOADL2KEEP )
 	CACHE_PRELOAD_DATA_CACHE( &c64ScreenRAM[ 0 ], 1024, CACHE_PRELOADL2KEEP )
 	CACHE_PRELOAD_DATA_CACHE( &c64ColorRAM[ 0 ], 1024, CACHE_PRELOADL2KEEP )
-	FORCE_READ_LINEAR32a( &oszi, 320, 320 * 8 );
 	FORCE_READ_LINEAR32a( &font_bin, 4096, 4096 * 8 );
 	FORCE_READ_LINEAR32a( &c64ScreenRAM, 1024, 1024 * 8 );
 	FORCE_READ_LINEAR32a( &c64ColorRAM, 1024, 1024 * 8 );
@@ -1919,13 +1851,13 @@ logger->Write("RAD", LogNotice, "%s - 1", __FUNCTION__);
 		font_bin[ 64*8+i ] = 255*0;
 	BUS_RESYNC
 
-	fadeScreen();
+	//fadeScreen();
 
-	for ( u32 i = 0; i < 1000; i++ )
+	for ( u32 i = 0; (!again) && i < 1000; i++ )
 	{
-		SPOKE( 0xd800 + i, 0 );
-		SPOKE( SCREEN1 + i, 32 );
-
+		SPOKE( 0xd800 + i, 6 );
+		//SPOKE( SCREEN1 + i, 32 );
+		SPOKE(0x7c00 + i, 0xef);	// videoRAM
 		// also clear original screen, not to be fooled by "READY." after reboot
 		SPOKE( 0x0400 + i, 32 );
 	}
@@ -1936,6 +1868,7 @@ logger->Write("RAD", LogNotice, "%s - 1", __FUNCTION__);
 	SPOKE( 0xdd03, 0x06 );
 	SPOKE( 0xdd01, 0x06 );
 
+#if 0
 	PEEK( 0xdd00, x );
 	x |= 4;
 	SPOKE( 0xdd00, x );
@@ -1943,17 +1876,17 @@ logger->Write("RAD", LogNotice, "%s - 1", __FUNCTION__);
 	const u8 vic[] = { 
 		0, 0, 0, 0, 0, 0, 0, 0, 
 		0, 0, 0, 0, 0, 0, 0, 0, 
-		0, 0x1B-0x10, 0, 0, 0, 0, 8, 0, 
+		0, 0x1B-0x10, 0, 0, 0, 0, 0, 0, 
 		0x14*0+8, 0, 0, 0, 0, 0, 0, 0,
-		0*14, 6*0, 1, 2, 3, 4, 0, 1, 
+		14, 6, 1, 2, 3, 4, 0, 1, 
 		2, 3, 4, 5, 6, 7
 	};
-
 	for ( int j = 0; j < 46; j++ )
 		SPOKE( 0xd000 + j, vic[ j ] );
+#endif
 
-	SPOKE( 0xdd00, 0b11000000 | ( ( SCREEN1 >> 14 ) ^ 0x03 ) );
-	SPOKE( 0xd018, PAGE1_LOWERCASE );
+	//SPOKE( 0xdd00, 0b11000000 | ( ( SCREEN1 >> 14 ) ^ 0x03 ) );
+	//SPOKE( 0xd018, PAGE1_LOWERCASE );
 
 	// init SID
 	BUS_RESYNC
@@ -2064,21 +1997,21 @@ logger->Write("RAD", LogNotice, "%s - 1", __FUNCTION__);
 		addr ++;
 	}
 #endif
-	for (int i = 0; i < 8000; i++)
+	for ( int i = 0; i < 40 * 25; i++ )
 	{
-		POKE(0x6000 + i, i % 256);
+		c64ScreenRAM[ i ] = 32;
+		c64ColorRAM[ i ] = ((14<<4) | (15));	
 	}
-
-	for ( int i = 0; i < 40 * 4; i++ )
+//	addr = 0x7800;
+//	for ( int i = 0; i < 1024; i++ )
+//		SPOKE( addr + i, 0 );
+	if (!again)
 	{
-		c64ScreenRAM[ i ] = i;
-		c64ColorRAM[ i ] = 1;
+		memset(dummy, 0xef, 1000);
+		memset(cdummy, 0x06, 1000);
 	}
-
-	addr = 0x7800;
-	for ( int i = 0; i < 1024; i++ )
-		SPOKE( addr + i, 0 );
-
+	
+#if 0
 	memset( font_logo, 0, 0x1000 );
 
 	for ( int i = 0; i < 72; i++ )
@@ -2096,7 +2029,7 @@ logger->Write("RAD", LogNotice, "%s - 1", __FUNCTION__);
 			font_logo[ o ] |= xc;
 		}
 	}
-	
+#endif
 	CACHE_PRELOAD_DATA_CACHE( &font_logo[ 0 ], 4096, CACHE_PRELOADL2KEEP )
 	FORCE_READ_LINEAR32a( &font_logo, 4096, 4096 * 8 );
 	BUS_RESYNC
@@ -2155,10 +2088,11 @@ logger->Write("RAD", LogNotice, "%s - 1", __FUNCTION__);
 
 	SPOKE( 0xdc03, 0 );		// port b ddr (input)
 	SPOKE( 0xdc02, 0xff );	// port a ddr (output)
-	SPOKE( 0xd016, 8 );
+	//SPOKE( 0xd016, 8 );		// 40 cols
 	SPOKE( 0xd021, 0 );
-	SPOKE( 0xd011, 0x1b );
-	SPOKE( 0xdd00, 0b11000000 | ((SCREEN1 >> 14) ^ 0x03) );
+	//SPOKE( 0xd011, 0x18 );
+//	SPOKE( 0xdd00, 0b11000000 | ((SCREEN1 >> 14) ^ 0x03) );
+#if 0
 	// sprites
 	u32 o = 56+92;
 	SPOKE( 0xd000, o+0 );  SPOKE( 0xd001, 53+1 );
@@ -2182,10 +2116,11 @@ logger->Write("RAD", LogNotice, "%s - 1", __FUNCTION__);
 	SPOKE( 0xd015, 0b111111 );
 	for ( int i = 0; i < 6; i++ )
 		SPOKE( SCREEN1 + 1024 - 8 + i, i );
+#endif
 
 
 	BUS_RESYNC
-	POKE( 0xd011, 0x1b );
+	//POKE( 0xd011, 0x18 );
 
 	lastRasterLine = 1234;
 
@@ -2200,9 +2135,12 @@ logger->Write("RAD", LogNotice, "%s - 1", __FUNCTION__);
 	u32 imgSize;
 
 	CACHE_PRELOAD_DATA_CACHE( (u8*)&font_bin[ 0 ], 4096, CACHE_PRELOADL2KEEP )
-	CACHE_PRELOAD_DATA_CACHE( (u8*)&oszi[ 0 ], 320, CACHE_PRELOADL2KEEP )
-	CACHE_PRELOAD_DATA_CACHE( (u8*)&c64ScreenRAM[ 0 ], 1024, CACHE_PRELOADL2KEEP )
-	CACHE_PRELOAD_DATA_CACHE( (u8*)&c64ColorRAM[ 0 ], 1024, CACHE_PRELOADL2KEEP )
+	//CACHE_PRELOAD_DATA_CACHE( (u8*)&c64ScreenRAM[ 0 ], 1024, CACHE_PRELOADL2KEEP )
+	//CACHE_PRELOAD_DATA_CACHE( (u8*)&c64ColorRAM[ 0 ], 1024, CACHE_PRELOADL2KEEP )
+	CACHE_PRELOAD_DATA_CACHE( (u8*)&dummy[ 0 ], 1024, CACHE_PRELOADL2KEEP )
+	CACHE_PRELOAD_DATA_CACHE( (u8*)&cdummy[ 0 ], 1024, CACHE_PRELOADL2KEEP )
+	CACHE_PRELOAD_DATA_CACHE( (u8*)&mandel_canvas[ 0 ], 0x2000, CACHE_PRELOADL2KEEP )
+
 	CACHE_PRELOAD_DATA_CACHE( (u8*)&font_bin[ 0 ], 256, CACHE_PRELOADL2KEEP )
 	CACHE_PRELOAD_DATA_CACHE( (u8*)rasterCommands, 256, CACHE_PRELOADL2KEEP )
 
@@ -2232,9 +2170,24 @@ logger->Write("RAD", LogNotice, "%s - 1", __FUNCTION__);
 			r = RUN_REBOOT;
 		#endif
 		case RUN_MEMEXP:
-			for ( i = 4; i < 1024 * 6; i ++ )
-				handleOneRasterLine( i >> 2 );
-			return r;
+			if (!mandel_iterate(1000 * 1000))
+			{
+				char h = ((dummy[0] & 0xf0) >> 4);
+				char l = (dummy[0] & 0x0f);
+				char c = (cdummy[0] & 0x0f);
+				h++; l++; c++;
+				if (!(h & 0xf)) h++;
+				if (!(l & 0xf)) l++;
+				if (!(c & 0xf)) c++;
+							
+				memset(dummy, ((h & 0xf) <<4) | (l & 0xf), 1000);
+				memset(cdummy, (c & 0xf), 1000);
+				again = true;
+			}
+			goto restartHijacking;
+
+			break;
+			//return r;
 		case SAVE_IMAGE:
 			// fade out
 			for ( i = 4; i < 1024 * 6; i ++ )
@@ -2258,7 +2211,7 @@ logger->Write("RAD", LogNotice, "%s - 1", __FUNCTION__);
 			} 
 #endif				
 			//reu.isModified  = false;
-			scanDirectoriesRAD( (char*)DRIVE );
+			//scanDirectoriesRAD( (char*)DRIVE );
 
 			// fade in 
 			for ( i = 1024 * 6; i >= 0; i -- )
