@@ -10,7 +10,7 @@
 #define NO_THREADS 4       // max 16 for Orangecart!
 #define STACK_SIZE 1024
 #define PIXELW 2 // 2
-#define MAX_ITER 128
+#define MAX_ITER 256
 #define IMG_W 320 // 320
 #define IMG_H 200 // 200
 #define MTYPE double
