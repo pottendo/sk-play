@@ -1682,6 +1682,12 @@ u32 handleOneRasterLine( int fade1024, u8 fadeText = 1 )
 	if ( curRasterLine < 51 || curRasterLine > 250 ) 
 		badline = false;
 
+	if ((curRasterLine % 20) == 3)
+	{
+		static char bor = 0;
+		POKE(0xd020, (bor % 16));
+		bor++;
+	}
 	if ( curRasterLine == rasterCommands[ curRasterCommand ][ 0 ] )
 	{
 		if ( curRasterCommand == 0 )
