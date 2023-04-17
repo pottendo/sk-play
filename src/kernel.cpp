@@ -52,17 +52,21 @@ boolean CKernel::Initialize (void)
 }
 
 extern CKernel Kernel;
-int rad_main(CKernel &kernel); 
-
 extern int mandel_iterate(int);
 
 TShutdownMode CKernel::Run (void)
 {
 	mLogger.Write ("pottendo-kern", LogNotice, "Mandelbrot Demo");
-	std::cout << "Hello C++ World." << std::endl;
 
 	(void) mandel_iterate(1000*1000);
+#ifdef RAD
+	extern int rad_main(CKernel &kernel); 
 	(void) rad_main(Kernel);
+#endif
+#ifdef SKVIC20
+	extern int skvic20_main(CKernel &kernel);
+	(void) skvic20_main(Kernel);
+#endif
 	mLogger.Write ("pottendo-kern", LogNotice, "Demo finished");
 	return ShutdownHalt;
 }

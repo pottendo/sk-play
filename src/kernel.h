@@ -48,6 +48,8 @@ public:
 	CInterruptSystem *get_isys(void) { return &mInterrupt; }
 	CTimer *get_timer(void) { return &mTimer; }
 	CLogger *get_logger(void) { return &mLogger; }
+	CScreenDevice *get_scrdevice(void) { return &mScreen; }
+	
 private:
 	CActLED			mActLED;
 	CKernelOptions		mOptions;
