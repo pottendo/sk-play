@@ -242,7 +242,7 @@ const bool VIC20_TYPE_NTSC = false;
 static u8 disableLatchesFIQ = 0;
 
 
-#if 0
+#if 1
 int loadLogoTGA( const char *ofn )
 {
 	if ( screenType != 1 ) 
@@ -694,22 +694,17 @@ boolean CKernelMenu::Initialize( void )
 
 	CBcmFrameBuffer *fb = screen->GetFrameBuffer();
 
-	logger->Write("VIC20", LogNotice, "%s: - 7", __FUNCTION__);
-
 	// read launch code and .PRG
 	readFile( logger, (char*)DRIVE, (char*)FILENAME_A0CBM, launchCode, &size );
 	readFile( logger, (char*)DRIVE, (char*)FILENAME_A0CBM35K, launchCode35k, &size );
 	readFile( logger, (char*)DRIVE, (char*)FILENAME_A0CRTSYNC, crtSyncCode, &size );
 	readFile( logger, (char*)DRIVE, (char*)FILENAME_A0BASICSYNC, basicSyncCode, &size );
-	logger->Write("VIC20", LogNotice, "%s: - 8", __FUNCTION__);
 
 	u32 charROMSize;
 	readFile( logger, (char*)DRIVE, (const char*)FILENAME_CHARROM, charROM, &charROMSize );
-	logger->Write("VIC20", LogNotice, "%s: - 9", __FUNCTION__);
 
 	// todo: this needs to be updated
 	scanDirectoriesVIC20( (char *)DRIVE );
-	logger->Write("VIC20", LogNotice, "%s: - 10", __FUNCTION__);
 
 	latchSetClearImm( LATCH_LED1, 0 );
 
@@ -718,7 +713,6 @@ boolean CKernelMenu::Initialize( void )
 		latchSetClearImm( LATCH_LED0to1, 0 );
 		logger->Write( "RaspiMenu", LogPanic, "error reading .cfg" );
 	}
-	logger->Write("VIC20", LogNotice, "%s: - 11", __FUNCTION__);
 
 	extern u8 cfgFontWidth;
 	extern void setLayout( bool wideChars = false );
@@ -750,12 +744,12 @@ boolean CKernelMenu::Initialize( void )
 
 	if ( screenType == 0 )
 	{
-		//splashScreen( sk20_splash );
+		splashScreen( sk20_splash );
 	} else
 	if ( screenType == 1 )
 	{
 		extern int screenRotation;
-		//tftInitImm( screenRotation );
+		tftInitImm( screenRotation );
 	}
 
 #ifdef HDMI_SOUND
@@ -843,16 +837,19 @@ extern u8 *mandel_canvas;
 
 void play_gfx(void)
 {
+	static int col = 11;
 	for (int y = 0; y < 10; y++)
 	{
 		for (int x = 0; x < 192; x++)
 		{
-			int offs = x / 16;
-			framebuffer[x + offs * 8 + y * 48 * 8] = mandel_canvas[x + y * 40 * 8];
-			framebuffer[(x + 8) + offs * 8 + y * 48 * 8] = mandel_canvas[x + 320 + y * 40 * 8];
+			int offs = x / 8;
+			framebuffer[x + (offs * 8) + (y * 24 * 16)] = mandel_canvas[x + y * 48 * 8];
+			framebuffer[(x + 8) + (offs * 8) + (y * 24 * 16)] = mandel_canvas[x + 192 + y * 48 * 8];
 		}
 	}
-	memset(colorbuffer, 1, 240);
+	if (mandel_iterate(1000*1000) == 0)
+		col++;
+	memset(colorbuffer, col, 240);
 }
 
 void CKernelMenu::Run( void )

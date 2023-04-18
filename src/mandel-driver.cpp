@@ -11,8 +11,13 @@
 #define STACK_SIZE 1024
 #define PIXELW 2 // 2
 #define MAX_ITER 256
+#ifdef SKVIC20
+#define IMG_W 192 // 320
+#define IMG_H 160 // 200
+#else
 #define IMG_W 320 // 320
 #define IMG_H 200 // 200
+#endif
 #define MTYPE double
 
 #define CSIZE (IMG_W * IMG_H) / 8
@@ -64,18 +69,30 @@ std::vector<rec_t> recs = {
         {{80, 110}, {120, 160}},
         {{60,75}, {100, 125}},
         {{60,110}, {100, 160}},
-        {{60,75}, {100, 125}},
-        {{60,75}, {100, 125}},
-        {{40,50}, {80, 100}},
-        {{120,75}, {159, 125}},
+        {{60,85}, {100, 135}},
+        {{60,85}, {100, 135}},
+        {{40,60}, {80, 110}},
+        {{120,85}, {159, 135}},
 };
 
 int mandel_zoom(mandel<MTYPE> *m, size_t i)
 {
+#ifdef SKVIC20
+    MTYPE scalex = 192/320.0;
+    MTYPE scaley = 160/200.0;
+#else
+    MTYPE scalex = 1.0;
+    MTYPE scaley = 1.0;
+#endif
+    point_t lu, rd;
     auto r = &recs[i];
      //log_msg("Zooming into [%d,%d]x[%d,%d]...stacks=%p\n", it->lu.x, it->lu.y, it->rd.x, it->rd.y, m->get_stacks());
-    m->select_start(r->lu);
-    m->select_end(r->rd);
+    lu.x = r->lu.x * scalex;
+    lu.y = r->lu.y * scaley;
+    rd.x = r->rd.x * scalex;
+    rd.y = r->rd.y * scaley;
+    m->select_start(lu);
+    m->select_end(rd);
     return 0;
 }
 
