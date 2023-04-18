@@ -6,5 +6,5 @@ src/*.map
 src/*.elf
 src/rad/*.d
 src/rad/*.o
-
-src/sk20/kernel_menu20.cpp
+src/sk20/*.d
+src/sk20/*.o
