@@ -8,3 +8,6 @@ src/rad/*.d
 src/rad/*.o
 src/sk20/*.d
 src/sk20/*.o
+src/OLED/*.o 
+src/OLED/*.d
+
